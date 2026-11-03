@@ -1,9 +1,25 @@
+# Environment variables
 .env
 .env.*
 !.env.example
+
+# AWS credentials
+.aws/
+credentials
+
+# Private keys and certificates
 *.pem
 *.key
+*.p12
+*.pfx
+
+# Application dependencies
 node_modules/
+
+# Logs
 *.log
-credentials
+
+# Secret files
 secrets/
+
+aws_credentials.py
