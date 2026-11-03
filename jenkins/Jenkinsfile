@@ -1,0 +1,25 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Repository Verification') {
+            steps {
+                echo 'GitHub repository connected successfully!'
+            }
+        }
+
+        stage('Microservices Information') {
+            steps {
+                echo 'User Service'
+                echo 'Product Service'
+                echo 'Order Service'
+            }
+        }
+
+        stage('Build Status') {
+            steps {
+                echo 'Initial Jenkins pipeline completed successfully.'
+            }
+        }
+    }
+}
