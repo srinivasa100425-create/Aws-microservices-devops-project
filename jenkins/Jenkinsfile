@@ -1,25 +1,80 @@
+
 pipeline {
     agent any
 
+    environment {
+        AWS_DEFAULT_REGION = 'ap-south-1'
+        AWS_ACCOUNT_ID = '131166809923'
+        ECR_REGISTRY = '131166809923.dkr.ecr.ap-south-1.amazonaws.com'
+        IMAGE_TAG = "build-${BUILD_NUMBER}"
+    }
+
     stages {
-        stage('Repository Verification') {
+
+        stage('Checkout') {
             steps {
-                echo 'GitHub repository connected successfully!'
+                echo 'Source code checked out through Jenkins SCM.'
             }
         }
 
-        stage('Microservices Information') {
+        stage('Configuration Validation') {
             steps {
-                echo 'User Service'
-                echo 'Product Service'
-                echo 'Order Service'
+                bat 'docker compose config -q'
             }
         }
 
-        stage('Build Status') {
+        stage('Build Docker Images') {
             steps {
-                echo 'Initial Jenkins pipeline completed successfully.'
+                bat '''
+                    docker build -t %ECR_REGISTRY%/user-service:%IMAGE_TAG% services/user-service
+                    docker build -t %ECR_REGISTRY%/product-service:%IMAGE_TAG% services/product-service
+                    docker build -t %ECR_REGISTRY%/order-service:%IMAGE_TAG% services/order-service
+                '''
             }
+        }
+
+        stage('Docker Image Verification') {
+            steps {
+                bat '''
+                    docker images %ECR_REGISTRY%/user-service
+                    docker images %ECR_REGISTRY%/product-service
+                    docker images %ECR_REGISTRY%/order-service
+                '''
+            }
+        }
+
+        stage('ECR Authentication and Push') {
+            steps {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws-ecr-credentials'
+                ]]) {
+                    bat '''
+                        aws ecr get-login-password --region %AWS_DEFAULT_REGION% | docker login --username AWS --password-stdin %ECR_REGISTRY%
+                        if errorlevel 1 exit /b 1
+
+                        docker push %ECR_REGISTRY%/user-service:%IMAGE_TAG%
+                        if errorlevel 1 exit /b 1
+
+                        docker push %ECR_REGISTRY%/product-service:%IMAGE_TAG%
+                        if errorlevel 1 exit /b 1
+
+                        docker push %ECR_REGISTRY%/order-service:%IMAGE_TAG%
+                        if errorlevel 1 exit /b 1
+
+                        docker logout %ECR_REGISTRY%
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'All microservice images were successfully pushed to AWS ECR.'
+        }
+        failure {
+            echo 'Jenkins pipeline failed. Check the console output for details.'
         }
     }
 }
